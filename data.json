@@ -1,0 +1,18 @@
+{
+  "orders": [
+    {
+      "order_id": "ORD12345",
+      "customer_name": "Alex Ray",
+      "status": "Shipped",
+      "estimated_delivery": "2025-10-10"
+    },
+    {
+      "order_id": "ORD67890",
+      "customer_name": "Bethany Shaw",
+      "status": "Processing",
+      "estimated_delivery": "2025-10-12"
+    }
+  ],
+  "refund_policy": "You can return any item within 30 days of purchase for a full refund. The item must be unused and in its original packaging. To start a return, please contact customer support with your order ID.",
+  "store_hours": "Our stores are open from 9:00 AM to 8:00 PM, Monday to Saturday. We are closed on Sundays and public holidays."
+}
