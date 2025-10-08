@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accessible Helpdesk</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        /* High-contrast, large-font theme */
+        body {
+            background-color: #121212;
+            color: #E0E0E0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 18px;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+        }
+        h1 { font-size: 2.5em; }
+        #chat-window {
+            border: 2px solid #555;
+            border-radius: 8px;
+            padding: 15px;
+            height: 50vh;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .user-msg, .bot-msg {
+            padding: 10px 15px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            max-width: 80%;
+        }
+        .user-msg { background-color: #005f73; color: white; margin-left: auto; }
+        .bot-msg { background-color: #333; }
+        #controls { display: flex; gap: 10px; }
+        #message-input {
+            flex-grow: 1;
+            padding: 12px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            border: 1px solid #555;
+            background-color: #222;
+            color: #E0E0E0;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 8px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+        button#voice-btn.recording { background-color: #D32F2F; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>AI Helpdesk Chatbot</h1>
+    <div id="chat-window">
+        <div class="bot-msg">Hello! How can I assist you today? You can ask me to track an order, explain the refund policy, or tell you our store hours.</div>
+    </div>
+    
+    <div id="controls">
+        <input type="text" id="message-input" placeholder="Type or say your message..." aria-label="Chat input">
+        <button id="voice-btn" aria-label="Start voice input">🎤</button>
+    </div>
+</div>
+
+<script>
+    const chatWindow = document.getElementById('chat-window');
+    const messageInput = document.getElementById('message-input');
+    const voiceBtn = document.getElementById('voice-btn');
+
+    // Generate a simple unique session ID for conversation context
+    const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // --- Voice Input (Speech-to-Text) ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+
+        voiceBtn.addEventListener('click', () => {
+            if (voiceBtn.classList.contains('recording')) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        });
+
+        recognition.onstart = () => {
+            voiceBtn.classList.add('recording');
+            voiceBtn.textContent = '🛑';
+            voiceBtn.setAttribute('aria-label', 'Stop voice input');
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            messageInput.value = transcript;
+            sendMessage(transcript); // Automatically send after transcription
+        };
+
+        recognition.onend = () => {
+            voiceBtn.classList.remove('recording');
+            voiceBtn.textContent = '🎤';
+            voiceBtn.setAttribute('aria-label', 'Start voice input');
+        };
+    } else {
+        voiceBtn.disabled = true;
+        voiceBtn.textContent = '❌';
+        console.log("Speech Recognition not supported in this browser.");
+    }
+
+    // --- Send Message on Enter Key ---
+    messageInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            sendMessage(messageInput.value);
+        }
+    });
+
+    // --- Main Send Message Function ---
+    async function sendMessage(messageText) {
+        if (!messageText.trim()) return;
+
+        displayMessage(messageText, 'user');
+        messageInput.value = ''; // Clear input field
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: messageText, session_id: sessionId })
+            });
+            const data = await response.json();
+            displayMessage(data.response, 'bot');
+            speak(data.response); // Read bot's response aloud
+        } catch (error) {
+            console.error("Error sending message:", error);
+            const errorMsg = "Sorry, I couldn't connect to the server.";
+            displayMessage(errorMsg, 'bot');
+            speak(errorMsg);
+        }
+    }
+
+    // --- Display Messages in Chat ---
+    function displayMessage(text, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = sender === 'user' ? 'user-msg' : 'bot-msg';
+        msgDiv.textContent = text;
+        chatWindow.appendChild(msgDiv);
+        chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to bottom
+    }
+
+    // --- Voice Output (Text-to-Speech) ---
+    function speak(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        speechSynthesis.speak(utterance);
+    }
+</script>
+
+</body>
+</html>
